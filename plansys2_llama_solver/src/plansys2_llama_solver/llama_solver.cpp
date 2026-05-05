@@ -189,6 +189,15 @@ std::optional<plansys2_solver_msgs::msg::Solver> LLAMASolver::solve(
   bool limited = (summarize_mode_ != "full");
   std::string action_summary = summarizeActionLog(action_file, limited);
 
+  if (prompt_debug_) {
+    RCLCPP_INFO(logger,
+      "[action-summary] mode=%s, raw=%zu chars -> summary=%zu chars\n%s",
+      summarize_mode_.c_str(),
+      action_file.size(),
+      action_summary.size(),
+      action_summary.c_str());
+  }
+
   std::string prompt_text = makePrompt(domain, problem, action_summary, observation);
 
   if (prompt_debug_) {
