@@ -39,12 +39,21 @@ target_link_libraries(${PROJECT_NAME}
   nlohmann_json::nlohmann_json
 )
 
-ament_target_dependencies(${PROJECT_NAME}
-  PUBLIC
-  plansys2_core
-  plansys2_domain_expert
-  plansys2_problem_expert
-)
+if(TARGET plansys2_core::plansys2_core)
+  target_link_libraries(${PROJECT_NAME}
+    PUBLIC
+    plansys2_core::plansys2_core
+    plansys2_domain_expert::plansys2_domain_expert
+    plansys2_problem_expert::plansys2_problem_expert
+  )
+else()
+  ament_target_dependencies(${PROJECT_NAME}
+    PUBLIC
+    plansys2_core
+    plansys2_domain_expert
+    plansys2_problem_expert
+  )
+endif()
 
 target_compile_definitions(${PROJECT_NAME} PUBLIC "PLUGINLIB__DISABLE_BOOST_FUNCTIONS")
 
