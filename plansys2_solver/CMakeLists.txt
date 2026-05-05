@@ -31,15 +31,19 @@ target_include_directories(${PROJECT_NAME} PUBLIC
 target_link_libraries(${PROJECT_NAME}
   PUBLIC
   ${lifecycle_msgs_TARGETS}
-  plansys2_core::plansys2_core
-  plansys2_domain_expert::plansys2_domain_expert
-  plansys2_problem_expert::plansys2_problem_expert
   ${plansys2_msgs_TARGETS}
   ${plansys2_solver_msgs_TARGETS}
   pluginlib::pluginlib
   rclcpp::rclcpp
   rclcpp_lifecycle::rclcpp_lifecycle
   nlohmann_json::nlohmann_json
+)
+
+ament_target_dependencies(${PROJECT_NAME}
+  PUBLIC
+  plansys2_core
+  plansys2_domain_expert
+  plansys2_problem_expert
 )
 
 target_compile_definitions(${PROJECT_NAME} PUBLIC "PLUGINLIB__DISABLE_BOOST_FUNCTIONS")
