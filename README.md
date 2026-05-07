@@ -1,16 +1,16 @@
 # plansys2_llm_solver
 
-Custom plan-solver plugin for [PlanSys2](https://github.com/PlanSys2/ros2_planning_system) that delegates PDDL planning to a large language model running locally via [`llama_ros`](https://github.com/mgonzs13/llama_ros) (llama.cpp).
+LLM-assisted replanner for [PlanSys2](https://github.com/PlanSys2/ros2_planning_system). When plan execution fails or a perception contradicts the symbolic state, it queries an LLM and returns the predicate deltas needed to recover — it does **not** replace PlanSys2's PDDL planner (POPF), it complements it. Default backend: local llama.cpp via [`llama_ros`](https://github.com/mgonzs13/llama_ros).
 
 Part of the [`plansys2-llm`](https://github.com/plansys2-llm) project.
 
 ## What this package provides
 
-- **`plansys2_solver`** — base plan-solver interface and the C++ glue with PlanSys2's planner pipeline.
-- **`plansys2_solver_msgs`** — ROS messages and actions used to talk to the underlying LLM service.
-- **`plansys2_llama_solver`** — concrete implementation backed by `llama_cli` from `llama_ros`.
+- **`plansys2_solver`** — pluginlib base (`plansys2::SolverBase`) and the lifecycle node that loads and runs the LLM plugins.
+- **`plansys2_solver_msgs`** — ROS messages and service definitions used between the solver node and its callers.
+- **`plansys2_llama_solver`** — default plugin backed by local llama.cpp via `llama_ros`.
 
-The solver is loaded as a PlanSys2 plugin (`plansys2/PlanSolverBase`), so it can be swapped for the default POPF planner via configuration.
+Plugins are loaded via pluginlib; multiple can be configured at once and run in parallel. New backends (e.g. ChatGPT through the OpenAI API) plug in by inheriting from `plansys2::SolverBase`.
 
 ## Installation and usage
 
