@@ -5,7 +5,7 @@
   <version>0.0.0</version>
   <description>This package contains the LLM-based Solver module for the ROS2 Planning System</description>
   <maintainer email="a.valencia.2022@alumnos.urjc.es">avalen2022</maintainer>
-  <license>TODO: License declaration</license>
+  <license>Apache-2.0</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 
