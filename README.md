@@ -14,11 +14,11 @@ Plugins are loaded via pluginlib; multiple can be configured at once and run in 
 
 ## Installation and usage
 
-This is one of two repositories that compose the project. **The full installation, configuration and demo instructions live in the organization home:**
+This is one of two repositories that compose the project. **The full installation and usage instructions live in the organization home:**
 
 > https://github.com/plansys2-llm
 
-The companion repository (`plansys2_llm_examples`) provides the bookstore demo that exercises this solver end-to-end.
+The companion repository (`plansys2_llm_examples`) provides the bookstore demo that exercises this replanner.
 
 ## License
 
