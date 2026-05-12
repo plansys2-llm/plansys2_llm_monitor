@@ -176,11 +176,7 @@ protected:
       "- Do NOT change predicates for objects not mentioned\n"
       "- If an object moved from A to B: remove (object_at obj A), add (object_at obj B)\n"
       "- If no changes are needed, classify as CORRECT\n\n"
-      "--- Domain ---\n" + domain + "\n\n"
-      "--- Problem ---\n" + problem + "\n\n"
-      "--- Action execution log ---\n" + action_summary + "\n\n"
-      "--- Observation ---\n" + observation + "\n\n"
-      "Reply ONLY with a JSON object in this exact format:\n"
+      "Reply with a JSON object in this exact format:\n"
       "{\n"
       "  \"classification\": \"MODIFY_PLAN\" or \"CORRECT\" or \"UNSOLVABLE\",\n"
       "  \"reasoning\": \"brief explanation\",\n"
@@ -188,7 +184,12 @@ protected:
       "  \"add_predicates\": [\"(predicate1)\", \"(predicate2)\"],\n"
       "  \"add_instances\": [],\n"
       "  \"domain_changes\": []\n"
-      "}";
+      "}\n\n"
+      "--- Domain ---\n" + domain + "\n\n"
+      "--- Problem ---\n" + problem + "\n\n"
+      "--- Action execution log ---\n" + action_summary + "\n\n"
+      "--- Observation ---\n" + observation + "\n\n"
+      "Output: JSON only.";
   }
 
   // Any failure yields classification=ERROR so callers can distinguish
