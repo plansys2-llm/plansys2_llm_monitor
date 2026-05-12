@@ -200,6 +200,11 @@ std::optional<plansys2_solver_msgs::msg::Solver> LLAMASolver::solve(
 
   std::string prompt_text = makePrompt(domain, problem, action_summary, observation);
 
+  const auto prompt_file_path = output_dir / std::filesystem::path("solver_prompt.txt");
+  std::ofstream prompt_out(prompt_file_path);
+  prompt_out << prompt_text;
+  prompt_out.close();
+
   if (prompt_debug_) {
     RCLCPP_INFO(logger, "[llama-prompt] Sending prompt (%zu chars):\n%s",
       prompt_text.size(), prompt_text.c_str());
