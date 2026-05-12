@@ -21,7 +21,7 @@ solver:
       plugin: "plansys2/LLAMASolver"
       llm_debug: true
       pre_launch: true  # false = re-launch LLM per solve (slower, frees RAM between solves)
-      model_yaml: "~/TFG/src/llm/llama_ros/llama_bringup/models/Phi-4.yaml"
+      model_yaml: "~/TFG/src/llm/llama_ros/llama_bringup/models/Qwen2.5-3B.yaml"
 executor:
   ros__parameters:
     bt_builder_plugin: "SimpleBTBuilder"
