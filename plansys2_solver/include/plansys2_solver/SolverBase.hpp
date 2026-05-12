@@ -169,8 +169,9 @@ protected:
     const std::string & observation)
   {
     return
-      "You are a PDDL state update assistant. Given a PDDL domain, problem state, "
-      "action execution log, and an observation, determine what state changes are needed.\n\n"
+      "You are a PDDL state update assistant. You will receive a PDDL domain, "
+      "a task description with observations, the problem state, and an "
+      "action execution log. Determine what state changes are needed.\n\n"
       "RULES:\n"
       "- Only change predicates directly affected by the observation\n"
       "- Do NOT change predicates for objects not mentioned\n"
@@ -186,9 +187,9 @@ protected:
       "  \"domain_changes\": []\n"
       "}\n\n"
       "--- Domain ---\n" + domain + "\n\n"
+      "--- Task & Observations ---\n" + observation + "\n\n"
       "--- Problem ---\n" + problem + "\n\n"
       "--- Action execution log ---\n" + action_summary + "\n\n"
-      "--- Observation ---\n" + observation + "\n\n"
       "Output: JSON only.";
   }
 

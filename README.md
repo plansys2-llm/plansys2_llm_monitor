@@ -12,6 +12,24 @@ Part of the [`plansys2-llm`](https://github.com/plansys2-llm) project.
 
 Plugins are loaded via pluginlib; multiple can be configured at once and run in parallel. New backends (e.g. ChatGPT through the OpenAI API) plug in by inheriting from `plansys2::SolverBase`.
 
+## `observation` field convention
+
+The service `GetSolve.srv` accepts an `observation` string with free-form content. The solver places it immediately after `--- Domain ---` in the prompt (the `--- Task & Observations ---` block).
+
+For best KV-cache reuse across consecutive solver calls (`cache_prompt: true` in `llama_ros`), construct the observation with **static content first, dynamic content last**:
+
+```text
+Your task: <stable description of what the LLM should do>
+
+Guidelines:
+- <domain-specific reasoning rules, stable across calls>
+- ...
+
+<dynamic content — failed action, runtime perceptions, sensor readings>
+```
+
+Because the cache reuses the longest common prefix between consecutive prompts, putting stable instructions at the top extends the cacheable region and avoids recomputing identical text on every replan.
+
 ## Installation and usage
 
 This is one of two repositories that compose the project. **The full installation and usage instructions live in the organization home:**
