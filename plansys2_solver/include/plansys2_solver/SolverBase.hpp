@@ -189,8 +189,7 @@ protected:
       "--- Domain ---\n" + domain + "\n\n"
       "--- Task & Observations ---\n" + observation + "\n\n"
       "--- Problem ---\n" + problem + "\n\n"
-      "--- Action execution log ---\n" + action_summary + "\n\n"
-      "Output: JSON only.";
+      "--- Action execution log ---\n" + action_summary;
   }
 
   // Any failure yields classification=ERROR so callers can distinguish
