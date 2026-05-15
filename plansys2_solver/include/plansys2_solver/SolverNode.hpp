@@ -155,6 +155,7 @@ private:
 
   plansys2_msgs::msg::ActionExecution::UniquePtr previous_action_msg_;
   std::string action_file_path_;
+  bool trunc_file_{true};  // truncate action-hub log after each get_solve
 };
 
 template<typename NodeT>

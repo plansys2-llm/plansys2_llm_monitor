@@ -35,6 +35,7 @@ SolverNode::SolverNode()
   declare_parameter("solver_plugins", default_ids_);
   double timeout = solve_timeout_.seconds();
   declare_parameter("solver_timeout", timeout);
+  declare_parameter("trunc_file", true);
 }
 
 SolverNode::~SolverNode()
@@ -67,6 +68,7 @@ SolverNode::on_configure(const rclcpp_lifecycle::State & state)
 
   get_parameter("solver_plugins", workers_ids_);
   get_parameter("solver_timeout", timeout);
+  get_parameter("trunc_file", trunc_file_);
 
   std::string nm = get_namespace();
   if (nm != "/") {
@@ -228,6 +230,14 @@ SolverNode::get_solve_service_callback(
 {
   (void) request_header;
   std::string action_file = read_file(action_file_path_);
+
+  if (trunc_file_) {
+    std::ofstream trunc_stream(action_file_path_, std::ios::out);
+    if (!trunc_stream) {
+      RCLCPP_WARN(this->get_logger(), "[%s] Could not truncate action-hub log", get_name());
+    }
+  }
+
   auto solves = get_solve_array(request->domain, request->problem, request->observation, action_file);
 
   if (!solves.solver_array.empty()) {
