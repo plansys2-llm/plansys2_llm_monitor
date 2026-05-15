@@ -176,8 +176,6 @@ protected:
       "- Only change predicates directly affected by the observation\n"
       "- Do NOT change predicates for objects not mentioned\n"
       "- If an object moved from A to B: remove (object_at obj A), add (object_at obj B)\n"
-      "- Each predicate must match a --- Domain --- :predicates signature (name + arg count); use only --- Problem --- objects\n"
-      "- An action is not a predicate; never reuse its name or args as one\n"
       "- If no changes are needed, classify as CORRECT\n\n"
       "Reply ONLY with a JSON object in this exact format:\n"
       "{\n"
