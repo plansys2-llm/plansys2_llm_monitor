@@ -12,6 +12,15 @@ Part of the [`plansys2-llm`](https://github.com/plansys2-llm) project.
 
 Plugins are loaded via pluginlib; multiple can be configured at once and run in parallel. New backends (e.g. ChatGPT through the OpenAI API) plug in by inheriting from `plansys2::SolverBase`.
 
+## Integrating this into your project
+
+👉 **[`INTEGRATION.md`](INTEGRATION.md)** is the integration contract: how to
+call the solver from an existing PlanSys2 project, the `solver/get_solve`
+service and message contract, the `observation` convention, configuration, and
+how to write your own solver plugin. It is written to be read by developers and
+by coding agents alike. Agents working *in this repo* should also read
+[`CLAUDE.md`](CLAUDE.md) (mirrored as [`AGENTS.md`](AGENTS.md)).
+
 ## Benchmark
 
 On a Raspberry Pi 5 16 GB running `Qwen2.5-3B-Q4_K_M` on CPU (4 threads), 3 050-token prompt:
