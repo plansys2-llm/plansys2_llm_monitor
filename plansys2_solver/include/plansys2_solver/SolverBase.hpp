@@ -175,6 +175,8 @@ protected:
       "RULES:\n"
       "- Only change predicates directly affected by the observation\n"
       "- Do NOT change predicates for objects not mentioned\n"
+      "- A fact's name and arguments must match a Domain (:predicates) "
+      "signature exactly - never the failed action's arguments or actor\n"
       "- If an object moved from A to B: remove (object_at obj A), add (object_at obj B)\n"
       "- If no changes are needed, classify as CORRECT\n\n"
       "Reply ONLY with a JSON object in this exact format:\n"
