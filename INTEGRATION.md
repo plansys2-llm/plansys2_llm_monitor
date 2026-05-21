@@ -66,8 +66,8 @@ Because it is a lifecycle node it must be transitioned
 lifecycle manager does this; **a standalone integrator must drive the
 transitions themselves** (e.g. `ros2 lifecycle set /monitor configure` then
 `activate`, or a lifecycle manager). The model server is forked during
-`on_configure` when `pre_launch: true`, so the first solve does not pay the
-model-load cost.
+`on_configure` when `pre_launch: true`, so the first `propose()` does not pay
+the model-load cost.
 
 ### 3.3 Call it from C++
 
@@ -134,7 +134,7 @@ directly for non-C++ / cross-language callers.
 | `string[] add_instances` | new objects/instances proposed |
 | `string[] domain_changes` | proposed domain edits (advisory) |
 | `string resolution` | raw LLM text (for logging/debug) |
-| `float32 time` | solve wall time, seconds |
+| `float32 time` | proposal wall time, seconds |
 
 Behavioural notes (see `MonitorBase::parseResponse`,
 `MonitorNode::get_proposal_service_callback`, `MonitorClient::getProposal`):
@@ -199,7 +199,7 @@ own `propose_timeout` parameter (default 150 s) — set it consistently with the
 node.
 
 `trunc_file` (default `true`) truncates the `actions_hub` log file after every
-`get_solve` consumes it, so each solve is scoped to the just-failed plan
+`get_proposal` consumes it, so each proposal is scoped to the just-failed plan
 attempt. This bounds the log (it would otherwise grow for the lifetime of the
 monitor node) and keeps the prompt's static prefix stable for KV-cache reuse.
 Set it `false` only if you deliberately want cross-attempt accumulation
@@ -218,7 +218,7 @@ one:
    (`plansys2_monitor/include/plansys2_monitor/MonitorBase.hpp`).
 2. Implement the pure-virtuals:
    - `void initialize(const std::string & node_name)`
-   - `std::optional<plansys2_monitor_msgs::msg::Proposal> solve(domain, problem, observation, action_file, node_namespace = "", propose_timeout = 120s)`
+   - `std::optional<plansys2_monitor_msgs::msg::Proposal> propose(domain, problem, observation, action_file, node_namespace = "", propose_timeout = 120s)`
 3. Optionally override `configure(lc_node, plugin_name)` — **call
    `MonitorBase::configure(lc_node, plugin_name)` first** (it reads
    `summarize_mode` / `prompt_debug`), then declare your own
@@ -261,8 +261,8 @@ Reference implementation:
   `ros2 llama` (the `llama_cli` exec dependency) must be on `PATH` in the
   node's environment.
 - **`pre_launch`.** `true` = one warm `llama_node` for the plugin's lifetime
-  (fast, holds RAM); `false` = launch/teardown per solve (frees RAM, slow). If
-  `pre_launch: true` but the server died, `solve()` relaunches on the fly.
+  (fast, holds RAM); `false` = launch/teardown per `propose()` (frees RAM, slow).
+  If `pre_launch: true` but the server died, `propose()` relaunches on the fly.
 - **`observation` ordering** is a performance contract (§5), not a style
   preference.
 - **Targets.** ROS 2 Jazzy and Rolling are both first-class.
