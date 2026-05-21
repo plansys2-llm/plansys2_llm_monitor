@@ -4,10 +4,10 @@ Guidance for coding agents (Claude Code, Codex, …) working in this repo.
 
 ## What this repo is
 
-`plansys2_llm_solver` is a **reusable PlanSys2 component**, not an application:
-a pluginlib solver base (`plansys2::SolverBase`), a `solver` lifecycle node, a
-`plansys2::SolverClient`, the `plansys2_solver_msgs` wire contract, and the
-default `plansys2/LLAMASolver` plugin (llama.cpp via `llama_ros`). It is
+`plansys2_llm_monitor` is a **reusable PlanSys2 component**, not an application:
+a pluginlib monitor base (`plansys2::MonitorBase`), a `monitor` lifecycle node, a
+`plansys2::MonitorClient`, the `plansys2_monitor_msgs` wire contract, and the
+default `plansys2/LLAMAMonitor` plugin (llama.cpp via `llama_ros`). It is
 consumed by **external** PlanSys2 projects. Treat its public surface as an API.
 
 ## Build / test
@@ -15,24 +15,24 @@ consumed by **external** PlanSys2 projects. Treat its public surface as an API.
 Colcon workspace, ROS 2 **Jazzy or Rolling** (both first-class):
 
 ```bash
-colcon build --packages-up-to plansys2_llama_solver
-colcon test  --packages-select plansys2_solver plansys2_llama_solver
+colcon build --packages-up-to plansys2_llama_monitor
+colcon test  --packages-select plansys2_monitor plansys2_llama_monitor
 ```
 
 ## Hard rules
 
 1. **The public surface is an API.** Do not change without flagging it in the
-   PR/commit: `srv/GetSolve`, `msg/Solver`, `msg/SolverArray`; the
-   `plansys2::SolverBase` virtual signatures; `plansys2::SolverClient` /
-   `SolverInterface`; the `solver/get_solve` service name; param names in
-   `plansys2_solver/params/solver_params.yaml`.
-2. **Preserve the prompt layout** in `SolverBase::makePrompt`
+   PR/commit: `srv/GetProposal`, `msg/Proposal`, `msg/ProposalArray`; the
+   `plansys2::MonitorBase` virtual signatures; `plansys2::MonitorClient` /
+   `MonitorInterface`; the `monitor/get_proposal` service name; param names in
+   `plansys2_monitor/params/monitor_params.yaml`.
+2. **Preserve the prompt layout** in `MonitorBase::makePrompt`
    (domain → observation → problem → action log). The static-first /
    dynamic-last ordering is a KV-cache performance contract — see
    `INTEGRATION.md` §5 and the `README.md` benchmark. Do not reorder it or move
    the JSON schema to the tail.
-3. **New backends are plugins.** Add a backend by inheriting `SolverBase` and
-   following `plansys2_llama_solver` exactly (pluginlib export `.xml`,
+3. **New backends are plugins.** Add a backend by inheriting `MonitorBase` and
+   following `plansys2_llama_monitor` exactly (pluginlib export `.xml`,
    `PLUGINLIB_EXPORT_CLASS`, CMake `pluginlib_export_plugin_description_file`,
    `package.xml` `<export>`). Reuse `makePrompt` / `summarizeActionLog` /
    `parseResponse`; honor `cancel_requested_`.
@@ -49,9 +49,9 @@ here.
 
 ## Key files
 
-- `plansys2_solver/include/plansys2_solver/SolverBase.hpp` — plugin base, `makePrompt`, `parseResponse`
-- `plansys2_solver/src/plansys2_solver/SolverNode.cpp` — `solver/get_solve` service, parallel plugin run, `actions_hub` log
-- `plansys2_solver/src/plansys2_solver/SolverClient.cpp` — caller API
-- `plansys2_solver_msgs/{srv/GetSolve.srv,msg/Solver.msg}` — wire contract
-- `plansys2_llama_solver/src/plansys2_llama_solver/llama_solver.cpp` — reference plugin
-- `plansys2_solver/params/solver_params.yaml` — configuration
+- `plansys2_monitor/include/plansys2_monitor/MonitorBase.hpp` — plugin base, `makePrompt`, `parseResponse`
+- `plansys2_monitor/src/plansys2_monitor/MonitorNode.cpp` — `monitor/get_proposal` service, parallel plugin run, `actions_hub` log
+- `plansys2_monitor/src/plansys2_monitor/MonitorClient.cpp` — caller API
+- `plansys2_monitor_msgs/{srv/GetProposal.srv,msg/Proposal.msg}` — wire contract
+- `plansys2_llama_monitor/src/plansys2_llama_monitor/llama_monitor.cpp` — reference plugin
+- `plansys2_monitor/params/monitor_params.yaml` — configuration

@@ -1,0 +1,7 @@
+<class_libraries>
+  <library path="plansys2_llama_monitor">
+    <class name="plansys2/LLAMAMonitor"  type="plansys2::LLAMAMonitor" base_class_type="plansys2::MonitorBase">
+      <description></description>
+    </class>
+  </library>
+</class_libraries>

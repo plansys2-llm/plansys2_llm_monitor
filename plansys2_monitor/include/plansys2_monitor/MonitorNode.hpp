@@ -1,0 +1,209 @@
+// Copyright 2026 Álvaro Valencia
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#ifndef PLANSYS2_MONITOR__MONITORNODE_HPP_
+#define PLANSYS2_MONITOR__MONITORNODE_HPP_
+
+#include <memory>
+#include <unordered_map>
+#include <string>
+#include <vector>
+#include <fstream>
+
+#include "plansys2_monitor/MonitorBase.hpp"
+
+#include "lifecycle_msgs/msg/state.hpp"
+#include "lifecycle_msgs/msg/transition.hpp"
+#include "plansys2_msgs/msg/action_execution.hpp"
+#include "plansys2_monitor_msgs/msg/proposal_array.hpp"
+#include "plansys2_monitor_msgs/srv/get_proposal.hpp"
+
+#include "rclcpp/rclcpp.hpp"
+#include "rclcpp_lifecycle/lifecycle_node.hpp"
+
+#include "pluginlib/class_loader.hpp"
+
+namespace plansys2
+{
+class MonitorNode : public rclcpp_lifecycle::LifecycleNode
+{
+public:
+  /**
+   * @brief Constructor for the MonitorNode.
+   */
+  MonitorNode();
+
+  /**
+   * @brief Destructor for the MonitorNode. Unloads all pluginlib-loaded monitor plugins.
+   */
+  ~MonitorNode();
+
+  using CallbackReturnT =
+    rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn;
+  using MonitorMap = std::unordered_map<std::string, plansys2::MonitorBase::Ptr>;
+
+  /**
+   * @brief Configures the node.
+   *
+   * @param[in] state The current lifecycle state.
+   * @return SUCCESS if configuration is successful, FAILURE otherwise.
+   */
+  CallbackReturnT on_configure(const rclcpp_lifecycle::State & state) override;
+
+  /**
+   * @brief Activates the node.
+   *
+   * @param[in] state The current lifecycle state.
+   * @return SUCCESS if activation is successful, FAILURE otherwise.
+   */
+  CallbackReturnT on_activate(const rclcpp_lifecycle::State & state) override;
+
+  /**
+   * @brief Deactivates the node.
+   *
+   * @param[in] state The current lifecycle state.
+   * @return SUCCESS if deactivation is successful, FAILURE otherwise.
+   */
+  CallbackReturnT on_deactivate(const rclcpp_lifecycle::State & state) override;
+
+  /**
+   * @brief Cleans up the node.
+   *
+   * @param[in] state The current lifecycle state.
+   * @return SUCCESS if cleanup is successful, FAILURE otherwise.
+   */
+  CallbackReturnT on_cleanup(const rclcpp_lifecycle::State & state) override;
+
+  /**
+   * @brief Shuts down the node.
+   *
+   * @param[in] state The current lifecycle state.
+   * @return SUCCESS if shutdown is successful, FAILURE otherwise.
+   */
+  CallbackReturnT on_shutdown(const rclcpp_lifecycle::State & state) override;
+
+  /**
+   * @brief Handles errors in the node.
+   *
+   * @param[in] state The current lifecycle state.
+   * @return SUCCESS if error handling is successful, FAILURE otherwise.
+   */
+  CallbackReturnT on_error(const rclcpp_lifecycle::State & state) override;
+
+  /**
+   * @brief Service callback that runs the configured monitor plugins over the current PDDL
+   *        domain, problem and observation, returning a Proposal message with the requested
+   *        state-delta (add/remove predicates) plus a classification.
+   *
+   * @param[in] request_header ROS service request header.
+   * @param[in] request Service request with domain, problem and observation strings.
+   * @param[out] response Service response with the Proposal message and status.
+   */
+  void get_proposal_service_callback(
+    const std::shared_ptr<rmw_request_id_t> request_header,
+    const std::shared_ptr<plansys2_monitor_msgs::srv::GetProposal::Request> request,
+    const std::shared_ptr<plansys2_monitor_msgs::srv::GetProposal::Response> response);
+
+  /**
+   * @brief Runs every loaded monitor plugin in parallel (std::async) and collects their
+   *        results, honouring the configured propose_timeout. Plugins that do not finish
+   *        in time are asked to cancel() and their futures are drained before return.
+   *
+   * @param[in] domain PDDL domain text.
+   * @param[in] problem PDDL problem text.
+   * @param[in] observation Short natural-language description of what triggered the proposal request.
+   * @param[in] action_file Content of the action-hub log file (produced by action_hub_callback).
+   * @return ProposalArray with one Proposal entry per plugin that produced a result.
+   */
+  plansys2_monitor_msgs::msg::ProposalArray get_proposal_array(
+    const std::string & domain, const std::string & problem, const std::string & observation, const std::string & action_file);
+
+  /**
+   * @brief Subscription callback for /actions_hub. Appends a structured entry to the
+   *        action-hub log file with per-action metadata (type, args, success, completion,
+   *        status). Deduplicates against the previous message to avoid flooding the log
+   *        with near-identical feedback ticks.
+   *
+   * @param[in] msg Incoming ActionExecution message. Ownership is taken: after the
+   *                dedup check the message is moved into previous_action_msg_.
+   */
+  void action_hub_callback(plansys2_msgs::msg::ActionExecution::UniquePtr msg);
+
+private:
+  pluginlib::ClassLoader<plansys2::MonitorBase> plugin_loader_;
+  std::vector<std::string> default_ids_;
+  std::vector<std::string> default_types_;
+  std::vector<std::string> workers_ids_;
+  std::vector<std::string> worker_types_;
+  rclcpp::Duration propose_timeout_;
+
+  MonitorMap proposers_;
+
+  rclcpp::Service<plansys2_monitor_msgs::srv::GetProposal>::SharedPtr get_proposal_service_;
+  rclcpp::Subscription<plansys2_msgs::msg::ActionExecution>::SharedPtr action_subs_;
+
+  plansys2_msgs::msg::ActionExecution::UniquePtr previous_action_msg_;
+  std::string action_file_path_;
+  bool trunc_file_{true};  // truncate action-hub log after each get_proposal
+};
+
+template<typename NodeT>
+void declare_parameter_if_not_declared(
+  NodeT node,
+  const std::string & param_name,
+  const rclcpp::ParameterValue & default_value = rclcpp::ParameterValue(),
+  const rcl_interfaces::msg::ParameterDescriptor & parameter_descriptor =
+  rcl_interfaces::msg::ParameterDescriptor())
+{
+  if (!node->has_parameter(param_name)) {
+    node->declare_parameter(param_name, default_value, parameter_descriptor);
+  }
+}
+
+/**
+ * @brief Get the plugin type parameter for a given plugin name.
+ *
+ * @tparam NodeT Type of the ROS2 node.
+ * @param[in] node Node to get the parameter from.
+ * @param[in] plugin_name Name of the plugin.
+ * @return String containing the plugin type.
+ */
+template<typename NodeT>
+std::string get_plugin_type_param(
+  NodeT node,
+  const std::string & plugin_name)
+{
+  declare_parameter_if_not_declared(node, plugin_name + ".plugin", rclcpp::ParameterValue(""));
+  std::string plugin_type;
+  if (!node->get_parameter(plugin_name + ".plugin", plugin_type)) {
+    RCLCPP_FATAL(node->get_logger(), "'plugin' param not defined for %s", plugin_name.c_str());
+    exit(-1);
+  }
+  return plugin_type;
+}
+
+inline std::string read_file(const std::string & file_path)
+{
+  std::ifstream file(file_path);
+  if (!file) {
+    return "";
+  }
+    std::stringstream buffer;
+    buffer << file.rdbuf();
+    return buffer.str();
+}
+
+}
+
+#endif  // PLANSYS2_MONITOR__MONITORNODE_HPP_

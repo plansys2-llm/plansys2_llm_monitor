@@ -1,9 +1,9 @@
-# Integrating `plansys2_llm_solver` into your project
+# Integrating `plansys2_llm_monitor` into your project
 
-This document is the integration contract for `plansys2_llm_solver`. It is
+This document is the integration contract for `plansys2_llm_monitor`. It is
 written to be read both by developers and by their coding agents (Claude Code,
 Codex, …). It tells you how to wire the LLM replanner into an existing PlanSys2
-project and how to add your own solver backend. It does **not** repeat install
+project and how to add your own monitor backend. It does **not** repeat install
 instructions — those live at <https://github.com/plansys2-llm>.
 
 > Conventions in this file: paths and C++/ROS symbols are stable references;
@@ -12,7 +12,7 @@ instructions — those live at <https://github.com/plansys2-llm>.
 
 ## 1. What this is (one paragraph)
 
-`plansys2_llm_solver` is **not** a PDDL planner. PlanSys2 keeps using its
+`plansys2_llm_monitor` is **not** a PDDL planner. PlanSys2 keeps using its
 classical planner (POPF). This package adds a **recovery** step: when plan
 execution fails or perception contradicts the symbolic state, you hand the LLM
 the PDDL domain, the PDDL problem and a natural-language `observation`, and it
@@ -25,46 +25,46 @@ plugins.
 
 | Package | Role | You depend on it when… |
 |---|---|---|
-| `plansys2_solver_msgs` | `srv/GetSolve`, `msg/Solver`, `msg/SolverArray` | always (the wire contract) |
-| `plansys2_solver` | `plansys2::SolverBase` plugin base + `solver` lifecycle node + `plansys2::SolverClient` | you call the solver or write a plugin |
-| `plansys2_llama_solver` | reference plugin (`plansys2/LLAMASolver`) backed by `llama_ros` | you use the default LLM backend |
+| `plansys2_monitor_msgs` | `srv/GetProposal`, `msg/Proposal`, `msg/ProposalArray` | always (the wire contract) |
+| `plansys2_monitor` | `plansys2::MonitorBase` plugin base + `monitor` lifecycle node + `plansys2::MonitorClient` | you call the monitor or write a plugin |
+| `plansys2_llama_monitor` | reference plugin (`plansys2/LLAMAMonitor`) backed by `llama_ros` | you use the default LLM backend |
 
-## 3. Quickstart — call the solver from your PlanSys2 project
+## 3. Quickstart — call the monitor from your PlanSys2 project
 
 ### 3.1 Build dependencies
 
 `package.xml`:
 
 ```xml
-<depend>plansys2_solver</depend>
-<depend>plansys2_solver_msgs</depend>
+<depend>plansys2_monitor</depend>
+<depend>plansys2_monitor_msgs</depend>
 ```
 
 `CMakeLists.txt`:
 
 ```cmake
-find_package(plansys2_solver REQUIRED)
-find_package(plansys2_solver_msgs REQUIRED)
+find_package(plansys2_monitor REQUIRED)
+find_package(plansys2_monitor_msgs REQUIRED)
 
 target_link_libraries(your_node
-  plansys2_solver::plansys2_solver
-  ${plansys2_solver_msgs_TARGETS}
+  plansys2_monitor::plansys2_monitor
+  ${plansys2_monitor_msgs_TARGETS}
 )
 ```
 
-### 3.2 Run the solver node
+### 3.2 Run the monitor node
 
-The solver is a **lifecycle node** named `solver`. Launch it with the shipped
-launch file (loads `plansys2_solver/params/solver_params.yaml`):
+The monitor is a **lifecycle node** named `monitor`. Launch it with the shipped
+launch file (loads `plansys2_monitor/params/monitor_params.yaml`):
 
 ```bash
-ros2 launch plansys2_solver solver_launch.py        # optional: namespace:=/robot1
+ros2 launch plansys2_monitor monitor_launch.py        # optional: namespace:=/robot1
 ```
 
 Because it is a lifecycle node it must be transitioned
 `configure → activate` before it answers. In the bookstore demo PlanSys2's
 lifecycle manager does this; **a standalone integrator must drive the
-transitions themselves** (e.g. `ros2 lifecycle set /solver configure` then
+transitions themselves** (e.g. `ros2 lifecycle set /monitor configure` then
 `activate`, or a lifecycle manager). The model server is forked during
 `on_configure` when `pre_launch: true`, so the first solve does not pay the
 model-load cost.
@@ -72,16 +72,16 @@ model-load cost.
 ### 3.3 Call it from C++
 
 ```cpp
-#include "plansys2_solver/SolverClient.hpp"
+#include "plansys2_monitor/MonitorClient.hpp"
 
-auto solver = std::make_shared<plansys2::SolverClient>();
+auto monitor = std::make_shared<plansys2::MonitorClient>();
 
-std::optional<plansys2_solver_msgs::msg::Solver> r =
-  solver->getReplanificateSolve(domain_pddl, problem_pddl, observation, "");
+std::optional<plansys2_monitor_msgs::msg::Proposal> r =
+  monitor->getProposal(domain_pddl, problem_pddl, observation, "");
 
 if (!r.has_value()) {
   // timeout, service absent, or LLM output unparseable (ERROR) — give up / retry
-} else if (r->classification == plansys2_solver_msgs::msg::Solver::CORRECT) {
+} else if (r->classification == plansys2_monitor_msgs::msg::Proposal::CORRECT) {
   // state already consistent; just replan
 } else {
   for (const auto & p : r->remove_predicates) {
@@ -94,26 +94,26 @@ if (!r.has_value()) {
 }
 ```
 
-> **Integrator trap.** `getReplanificateSolve(domain, problem, observation, ns)`
+> **Integrator trap.** `getProposal(domain, problem, observation, ns)`
 > has **no separate “prompt” parameter**. The third argument *is* the
 > `observation`. In the reference example
 > (`plansys2_llm_examples` → `Reception::step()` in
 > `src/reception_controller_node.cpp`) a local variable called `prompt` is built
 > (task + guidelines + failed action + perception log) and passed straight into
-> the `observation` slot. The solver wraps it into the final LLM prompt for you
+> the `observation` slot. The monitor wraps it into the final LLM prompt for you
 > (see §5). Do not also build a full LLM prompt yourself.
 
-You do **not** pass the action-execution log. The `solver` node subscribes to
+You do **not** pass the action-execution log. The `monitor` node subscribes to
 `<ns>/actions_hub` (`plansys2_msgs/msg/ActionExecution`), deduplicates the
 feedback flood, and injects a summary into the prompt automatically. PlanSys2's
 executor already publishes there.
 
 ## 4. The public contract
 
-### Service `solver/get_solve` — `plansys2_solver_msgs/srv/GetSolve`
+### Service `monitor/get_proposal` — `plansys2_monitor_msgs/srv/GetProposal`
 
-Created relative to the node namespace by `SolverNode::on_configure`
-(`plansys2_solver/src/plansys2_solver/SolverNode.cpp`). Use the service
+Created relative to the node namespace by `MonitorNode::on_configure`
+(`plansys2_monitor/src/plansys2_monitor/MonitorNode.cpp`). Use the service
 directly for non-C++ / cross-language callers.
 
 | Direction | Field | Meaning |
@@ -122,10 +122,10 @@ directly for non-C++ / cross-language callers.
 | Request | `string problem` | PDDL problem text (current state) |
 | Request | `string observation` | natural-language task + guidelines + dynamic facts (see §5) |
 | Response | `uint8 status` | `ERROR=0`, `SUCCESS=1`, `RUNNING=2` |
-| Response | `plansys2_solver_msgs/Solver solver` | the result (below) |
+| Response | `plansys2_monitor_msgs/Proposal proposal` | the result (below) |
 | Response | `string error_info` | populated when `status == ERROR` |
 
-### `plansys2_solver_msgs/msg/Solver`
+### `plansys2_monitor_msgs/msg/Proposal`
 
 | Field | Meaning |
 |---|---|
@@ -136,17 +136,17 @@ directly for non-C++ / cross-language callers.
 | `string resolution` | raw LLM text (for logging/debug) |
 | `float32 time` | solve wall time, seconds |
 
-Behavioural notes (see `SolverBase::parseResponse`,
-`SolverNode::get_solve_service_callback`, `SolverClient::getReplanificateSolve`):
+Behavioural notes (see `MonitorBase::parseResponse`,
+`MonitorNode::get_proposal_service_callback`, `MonitorClient::getProposal`):
 
 - `ERROR` classification (LLM output unparseable) is mapped to
-  `status == ERROR` by the node and to `std::nullopt` by `SolverClient`. A
+  `status == ERROR` by the node and to `std::nullopt` by `MonitorClient`. A
   C++ caller therefore only ever sees `CORRECT/MODIFY_PLAN/MODIFY_DOMAIN/UNSOLVABLE`
   or no value.
-- `SolverClient::getReplanificateSolveArray` is currently a stub returning
+- `MonitorClient::getProposalArray` is currently a stub returning
   empty — only the single-result path is supported.
 - Multiple plugins run in parallel (`std::async`); the service returns the
-  first entry of the collected `SolverArray` (iteration order is by solver id).
+  first entry of the collected `ProposalArray` (iteration order is by monitor id).
   Single-plugin setups (the default `["LLAMA"]`) are unaffected.
 
 ## 5. The `observation` convention (performance-critical)
@@ -163,7 +163,7 @@ Guidelines:
 <dynamic: the failed action, runtime perceptions, sensor readings>
 ```
 
-Why: `SolverBase::makePrompt` (`plansys2_solver/include/plansys2_solver/SolverBase.hpp`)
+Why: `MonitorBase::makePrompt` (`plansys2_monitor/include/plansys2_monitor/MonitorBase.hpp`)
 places `observation` between `--- Domain ---` and `--- Problem ---`. With
 `cache_prompt: true` (llama_ros default) the LLM reuses the longest common
 prefix across calls, so keeping the volatile text at the tail maximises
@@ -172,55 +172,55 @@ recomputed on a tail-only change, and `pre_launch: true` gives the cold→warm
 speedup. This ordering is a contract: a plugin must not reorder
 domain/observation/problem in its prompt.
 
-## 6. Configuration (`plansys2_solver/params/solver_params.yaml`)
+## 6. Configuration (`plansys2_monitor/params/monitor_params.yaml`)
 
 ```yaml
-solver:
+monitor:
   ros__parameters:
-    solver_timeout: 240.0          # seconds; plugins exceeding this are cancel()ed
+    propose_timeout: 240.0          # seconds; plugins exceeding this are cancel()ed
     summarize_mode: "limited"      # "limited" = only FINISH/CANCEL action-log entries; "full" = all
     prompt_debug: false            # log the assembled prompt and action summary
-    trunc_file: true               # truncate the actions_hub log after each get_solve; false = accumulate (advanced)
-    solver_plugins: ["LLAMA"]      # ordered list of plugin ids to load
+    trunc_file: true               # truncate the actions_hub log after each get_proposal; false = accumulate (advanced)
+    monitor_plugins: ["LLAMA"]      # ordered list of plugin ids to load
     LLAMA:
-      plugin: "plansys2/LLAMASolver"
+      plugin: "plansys2/LLAMAMonitor"
       llm_debug: true              # drain llama_node stdout/stderr into the node log
       pre_launch: true             # start llama_node once at configure (fast warm calls, holds RAM)
       model_yaml: "~/TFG/src/llm/llama_ros/llama_bringup/models/Qwen2.5-3B.yaml"
       # launch_extra_args: []      # extra argv appended to `ros2 llama launch`
       # prompt_extra_args: []      # extra argv appended to `ros2 llama prompt`
-      # output_dir: "<tmp>"        # where solver_{domain,problem,observation,prompt,resolution} are written
+      # output_dir: "<tmp>"        # where monitor_node_{domain,problem,observation,prompt,resolution} are written
 ```
 
 **Integrators must override `model_yaml`** — the default points into the TFG
 tree. CPU thread count, context size and the GGUF file are configured in the
-`llama_ros` model YAML, not here. `~` is expanded. The `SolverClient` reads its
-own `solver_timeout` parameter (default 150 s) — set it consistently with the
+`llama_ros` model YAML, not here. `~` is expanded. The `MonitorClient` reads its
+own `propose_timeout` parameter (default 150 s) — set it consistently with the
 node.
 
 `trunc_file` (default `true`) truncates the `actions_hub` log file after every
 `get_solve` consumes it, so each solve is scoped to the just-failed plan
 attempt. This bounds the log (it would otherwise grow for the lifetime of the
-solver node) and keeps the prompt's static prefix stable for KV-cache reuse.
+monitor node) and keeps the prompt's static prefix stable for KV-cache reuse.
 Set it `false` only if you deliberately want cross-attempt accumulation
 (advanced; grows unbounded, weakens cache reuse). Cross-attempt "the previous
 fix did not work" memory should instead be supplied by the caller in the
 `observation`, since only the caller knows whether its prior correction
 succeeded.
 
-## 7. Writing your own solver plugin
+## 7. Writing your own monitor plugin
 
-The fork+exec shape of `LLAMASolver` exists so any backend (other local models,
-paid APIs) can plug in without dragging its SDK into the solver process. To add
+The fork+exec shape of `LLAMAMonitor` exists so any backend (other local models,
+paid APIs) can plug in without dragging its SDK into the monitor process. To add
 one:
 
-1. Inherit `plansys2::SolverBase`
-   (`plansys2_solver/include/plansys2_solver/SolverBase.hpp`).
+1. Inherit `plansys2::MonitorBase`
+   (`plansys2_monitor/include/plansys2_monitor/MonitorBase.hpp`).
 2. Implement the pure-virtuals:
    - `void initialize(const std::string & node_name)`
-   - `std::optional<plansys2_solver_msgs::msg::Solver> solve(domain, problem, observation, action_file, node_namespace = "", solve_timeout = 120s)`
+   - `std::optional<plansys2_monitor_msgs::msg::Proposal> solve(domain, problem, observation, action_file, node_namespace = "", propose_timeout = 120s)`
 3. Optionally override `configure(lc_node, plugin_name)` — **call
-   `SolverBase::configure(lc_node, plugin_name)` first** (it reads
+   `MonitorBase::configure(lc_node, plugin_name)` first** (it reads
    `summarize_mode` / `prompt_debug`), then declare your own
    `plugin_name + ".<param>"` parameters. Optionally override `cancel()`.
 4. Reuse the protected helpers — do not reinvent them:
@@ -232,31 +232,31 @@ one:
      fills the predicate arrays, and yields `ERROR` on any parse failure so
      callers can tell “no answer” from “wants a replan”.
 5. Cooperate with cancellation: poll `cancel_requested_` during long work.
-   `SolverNode::get_solve_array` cancels plugins that exceed `solver_timeout`
+   `MonitorNode::get_proposal_array` cancels plugins that exceed `propose_timeout`
    and joins their futures ~100 ms later; a plugin that ignores
    `cancel_requested_` will stall the service.
-6. Export it (mirror `plansys2_llama_solver` exactly):
+6. Export it (mirror `plansys2_llama_monitor` exactly):
    - End the `.cpp` with
-     `PLUGINLIB_EXPORT_CLASS(plansys2::YourSolver, plansys2::SolverBase);`
+     `PLUGINLIB_EXPORT_CLASS(plansys2::YourMonitor, plansys2::MonitorBase);`
    - Ship a `*_plugin.xml`:
-     `<library path="your_lib"><class name="plansys2/YourSolver" type="plansys2::YourSolver" base_class_type="plansys2::SolverBase">`
+     `<library path="your_lib"><class name="plansys2/YourMonitor" type="plansys2::YourMonitor" base_class_type="plansys2::MonitorBase">`
    - `CMakeLists.txt`:
-     `pluginlib_export_plugin_description_file(plansys2_solver your_plugin.xml)`
+     `pluginlib_export_plugin_description_file(plansys2_monitor your_plugin.xml)`
    - `package.xml` `<export>`:
-     `<plansys2_solver plugin="${prefix}/your_plugin.xml" />`
-7. Select it in params: add the id to `solver_plugins` and a
-   `YOURID: { plugin: "plansys2/YourSolver", ... }` block. Several plugins may
+     `<plansys2_monitor plugin="${prefix}/your_plugin.xml" />`
+7. Select it in params: add the id to `monitor_plugins` and a
+   `YOURID: { plugin: "plansys2/YourMonitor", ... }` block. Several plugins may
    be listed; they run concurrently.
 
 Reference implementation:
-`plansys2_llama_solver/src/plansys2_llama_solver/llama_solver.cpp`
-(`LLAMASolver::configure / solve / launch_llm_server / shutdown_llm_server`).
+`plansys2_llama_monitor/src/plansys2_llama_monitor/llama_monitor.cpp`
+(`LLAMAMonitor::configure / propose / launch_llm_server / shutdown_llm_server`).
 
 ## 8. Gotchas
 
-- **Lifecycle.** `solver` does nothing until `configure`+`activate`. Standalone
+- **Lifecycle.** `monitor` does nothing until `configure`+`activate`. Standalone
   users must manage the transitions.
-- **`llama_ros` required for the default plugin.** `LLAMASolver` forks
+- **`llama_ros` required for the default plugin.** `LLAMAMonitor` forks
   `ros2 llama launch <model_yaml>` and `ros2 llama prompt "<text>" -t 0.0`;
   `ros2 llama` (the `llama_cli` exec dependency) must be on `PATH` in the
   node's environment.
@@ -273,11 +273,11 @@ Reference implementation:
 
 - `src/reception_controller_node.cpp` → `Reception::step()`, plan-failure path
   (logged `[EXECUTION_FAILURE]`): builds the `observation`, calls
-  `SolverClient::getReplanificateSolve`, applies the predicate deltas via the
+  `MonitorClient::getProposal`, applies the predicate deltas via the
   PlanSys2 `ProblemExpert`, replans.
 - `Reception::build_perception_context()`: how the dynamic tail of the
   `observation` is assembled from perception events.
-- `launch/bookstore_kobuki_launch.py`: how the `solver` node is brought up
+- `launch/bookstore_kobuki_launch.py`: how the `monitor` node is brought up
   alongside PlanSys2.
 
 See <https://github.com/plansys2-llm> for installation and the full demo.

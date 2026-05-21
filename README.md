@@ -1,4 +1,4 @@
-# plansys2_llm_solver
+# plansys2_llm_monitor
 
 LLM-assisted replanner for [PlanSys2](https://github.com/PlanSys2/ros2_planning_system). When plan execution fails or a perception contradicts the symbolic state, it queries an LLM and returns the predicate deltas needed to recover — it does **not** replace PlanSys2's PDDL planner (POPF), it complements it. Default backend: local llama.cpp via [`llama_ros`](https://github.com/mgonzs13/llama_ros).
 
@@ -6,18 +6,18 @@ Part of the [`plansys2-llm`](https://github.com/plansys2-llm) project.
 
 ## What this package provides
 
-- **`plansys2_solver`** — pluginlib base (`plansys2::SolverBase`) and the lifecycle node that loads and runs the LLM plugins.
-- **`plansys2_solver_msgs`** — ROS messages and service definitions used between the solver node and its callers.
-- **`plansys2_llama_solver`** — default plugin backed by local llama.cpp via `llama_ros`.
+- **`plansys2_monitor`** — pluginlib base (`plansys2::MonitorBase`) and the lifecycle node that loads and runs the LLM plugins.
+- **`plansys2_monitor_msgs`** — ROS messages and service definitions used between the monitor node and its callers.
+- **`plansys2_llama_monitor`** — default plugin backed by local llama.cpp via `llama_ros`.
 
-Plugins are loaded via pluginlib; multiple can be configured at once and run in parallel. New backends (e.g. ChatGPT through the OpenAI API) plug in by inheriting from `plansys2::SolverBase`.
+Plugins are loaded via pluginlib; multiple can be configured at once and run in parallel. New backends (e.g. ChatGPT through the OpenAI API) plug in by inheriting from `plansys2::MonitorBase`.
 
 ## Integrating this into your project
 
 👉 **[`INTEGRATION.md`](INTEGRATION.md)** is the integration contract: how to
-call the solver from an existing PlanSys2 project, the `solver/get_solve`
+call the monitor from an existing PlanSys2 project, the `monitor/get_proposal`
 service and message contract, the `observation` convention, configuration, and
-how to write your own solver plugin. It is written to be read by developers and
+how to write your own monitor plugin. It is written to be read by developers and
 by coding agents alike. Agents working *in this repo* should also read
 [`CLAUDE.md`](CLAUDE.md) (mirrored as [`AGENTS.md`](AGENTS.md)).
 
@@ -35,7 +35,7 @@ Cold → warm: **×4.7 faster**. Replan with a tail change: **×5.2 fewer tokens
 
 ### How to reproduce these numbers
 
-The `observation` argument to `GetSolve.srv` should be built with **static content first, dynamic content last**. The solver places it immediately after `--- Domain ---` in the prompt (the `--- Task & Observations ---` block), so `cache_prompt: true` (default in `llama_ros`) can reuse the longest common prefix between consecutive calls:
+The `observation` argument to `GetProposal.srv` should be built with **static content first, dynamic content last**. The monitor places it immediately after `--- Domain ---` in the prompt (the `--- Task & Observations ---` block), so `cache_prompt: true` (default in `llama_ros`) can reuse the longest common prefix between consecutive calls:
 
 ```text
 Your task: <stable description of what the LLM should do>
