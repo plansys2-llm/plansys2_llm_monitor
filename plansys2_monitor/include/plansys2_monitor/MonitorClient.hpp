@@ -1,4 +1,8 @@
+// Copyright 2019 Intelligent Robotics Lab
 // Copyright 2026 Álvaro Valencia
+//
+// Scaffolding adapted from the PlanSys2 client/node pattern
+// (Intelligent Robotics Lab); LLM monitor logic by Álvaro Valencia.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
